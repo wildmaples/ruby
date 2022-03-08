@@ -498,6 +498,7 @@ struct rb_iseq_constant_body {
 #endif
 
     rb_yjit_block_array_array_t yjit_blocks; // empty, or has a size equal to iseq_size
+    rb_iseq_t *original_iseq;
 };
 
 /* T_IMEMO/iseq */

@@ -13080,7 +13080,8 @@ inline_iseqs(VALUE *code, size_t pos, iseq_value_itr_t * func, void *_ctx, rb_vm
                 const struct rb_iseq_constant_body *const body = callee_iseq->body;
 
                 // Is the cache still valid?
-                ADD_INSN1(code_list_root, &dummy_line_node, jump_if_cache_miss, cd);
+                LABEL * cache_miss_label = NEW_LABEL(0);
+                ADD_INSN2(code_list_root, &dummy_line_node, jump_if_cache_miss, cd, cache_miss_label);
 
                 size_t size = body->iseq_size;
                 VALUE * callee_code = body->iseq_encoded;
@@ -13108,6 +13109,10 @@ inline_iseqs(VALUE *code, size_t pos, iseq_value_itr_t * func, void *_ctx, rb_vm
                 for (size_t n = 0; n < size;) {
                     n += inline_iseqs(callee_code, n, NULL, _ctx, translator);
                 }
+
+                ADD_LABEL(code_list_root, cache_miss_label);
+                iseq->body->ci_size++;
+                ADD_INSN1(code_list_root, &dummy_line_node, opt_send_without_block, cd->ci);
 
                 ADD_LABEL(code_list_root, leave_label);
 
@@ -13311,6 +13316,8 @@ rb_inline_callee_iseqs(const rb_iseq_t * original_iseq)
     }
 
     fprintf(stderr, "original size: %d new size %d\n", original_iseq->body->local_table_size, info.max_locals);
+    iseq->body->original_iseq = original_iseq;
+    RB_OBJ_WRITTEN(iseq, Qundef, original_iseq);
 
     CHECK(iseq_setup_insn(iseq, code_list_root));
     iseq_setup(iseq, code_list_root);
@@ -13333,4 +13340,3 @@ rb_inline_callee_iseqs(const rb_iseq_t * original_iseq)
 
     return iseq;
 }
-
