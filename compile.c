@@ -2961,8 +2961,10 @@ iseq_peephole_optimize(rb_iseq_t *iseq, LINK_ELEMENT *list, const int do_tailcal
     INSN *const iobj = (INSN *)list;
 
   again:
+    // is checktype an instruction that is optimized away?
     optimize_checktype(iseq, iobj);
 
+    // if the iobj is a jump
     if (IS_INSN_ID(iobj, jump)) {
         INSN *niobj, *diobj, *piobj;
         diobj = (INSN *)get_destination_insn(iobj);
@@ -3098,7 +3100,7 @@ iseq_peephole_optimize(rb_iseq_t *iseq, LINK_ELEMENT *list, const int do_tailcal
             ELEM_REMOVE(&end->link);
             range->insn_id = BIN(putobject);
             OPERAND_AT(range, 0) = lit_range;
-            RB_OBJ_WRITTEN(iseq, Qundef, lit_range);
+            RB_OBJ_WRITTEN(iseq, Qundef, lit_range); // write barrier for range obj
         }
     }
 
@@ -3703,7 +3705,7 @@ static int
 iseq_optimize(rb_iseq_t *iseq, LINK_ANCHOR *const anchor)
 {
     LINK_ELEMENT *list;
-    const int do_peepholeopt = ISEQ_COMPILE_DATA(iseq)->option->peephole_optimization;
+    const int do_peepholeopt = ISEQ_COMPILE_DATA(iseq)->option->peephole_optimization; // check in rb_compile_option_struct if peephole optimization is enabled
     const int do_tailcallopt = tailcallable_p(iseq) &&
         ISEQ_COMPILE_DATA(iseq)->option->tailcall_optimization;
     const int do_si = ISEQ_COMPILE_DATA(iseq)->option->specialized_instruction;
@@ -3719,10 +3721,12 @@ iseq_optimize(rb_iseq_t *iseq, LINK_ANCHOR *const anchor)
         do_block_optimization = 1;
     }
 
+    // iterate through each `list`
+    // `list` seems to be pointer to a linked list
     while (list) {
         if (IS_INSN(list)) {
             if (do_peepholeopt) {
-                iseq_peephole_optimize(iseq, list, tailcallopt);
+                iseq_peephole_optimize(iseq, list, tailcallopt); // interestingly, tailcallopt? is needed
             }
             if (do_si) {
                 iseq_specialized_instruction(iseq, (INSN *)list);
